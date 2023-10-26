@@ -1,0 +1,41 @@
+variables:
+  PROJECT: 'AuthSchema.WebAPI.sln'
+  NUGET_PATH: 'C:\Tools\nuget.exe'
+  MSBUILD_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\msbuild.exe'
+
+stages:
+  - build
+  - deploy
+
+build_job:
+  tags: 
+    - shared
+  stage: build
+  only:
+    - branches
+  script:
+    - dotnet restore C:\Gitlab-Runner\builds\K414M7Rz\0\a8809\AuthSchema\AuthSchema\"$env:PROJECT" --no-cache --force --verbosity quiet /nodereuse:false
+    - dotnet build C:\Gitlab-Runner\builds\K414M7Rz\0\a8809\AuthSchema\AuthSchema\"$env:PROJECT" -- configuration Release --no-restore --verbosity quiet /nodereuse:false
+deploy_job:
+  tags: 
+    - shared
+  stage: deploy
+  when: manual
+  only:
+    - master
+    - main
+  script:
+    - echo "Parando WebSite para novos dados" 
+    - Stop-WebSite -Name "AuthSchema - WebAPI"
+    - echo "WebSite Parado" 
+    - sleep 10
+    - echo "Excluindo versao antiga"
+    - Remove-Item C:\Sistemas\AuthSchema\* -Force
+    - echo "Publicando Nova versao"
+    - dotnet publish -c Release -r win-x64 --framework net5.0 --output C:\Sistemas\AuthSchema --self-contained false C:\Gitlab-Runner\builds\K414M7Rz\0\a8809\AuthSchema\"$env:PROJECT"
+    - sleep 10
+    - echo "Iniciando o novo Site"
+    - Start-WebSite -Name "ASP-API-BI"
+    - echo "Site Iniciado"
+  needs:
+    - build_job
